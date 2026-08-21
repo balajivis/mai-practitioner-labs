@@ -102,12 +102,13 @@ class State(TypedDict, total=False):
 def make_app(cli):
     def agent(state: State) -> State:
         if state["calls"] >= state["budget"]:
-            say(f"  [red]⛔ budget cap: {state['budget']} model calls — stopping honestly[/red]")
+            n = state["budget"]
+            say(f"  [red]⛔ budget cap: {n} model call{'' if n == 1 else 's'} — stopping honestly[/red]")
             return {"messages": state["messages"] + [
                 {"role": "assistant",
                  "content": "I hit my step budget before finishing — a human should take over."}]}
         resp = cli.chat.completions.create(
-            model=MODEL, messages=state["messages"], tools=TOOLS_SPEC, max_tokens=350)
+            model=MODEL, messages=state["messages"], tools=TOOLS_SPEC, max_tokens=700)
         meter.add(resp.usage, "agent")
         msg = resp.choices[0].message
         entry = {"role": "assistant", "content": msg.content or ""}
@@ -200,8 +201,8 @@ def stage_agentic_rag(cli):
 
 def stage_budget(cli):
     say("Loops run away — a cap makes failure honest instead of expensive.")
-    say("Same agent, budget of TWO model calls:\n")
-    run(cli, make_app(cli), "Compare travel, procurement and AI policies for anything that mentions approvals, then summarize each.", budget=2)
+    say("Same agent, same big question — but a budget of ONE model call:\n")
+    run(cli, make_app(cli), "Compare travel, procurement and AI policies for anything that mentions approvals, then summarize each.", budget=1)
     say("It stopped, said so, and handed off — that beats a 40-call bill every time.")
     say("Budgets, timeouts and caps are to agents what brakes are to cars.")
 
@@ -260,8 +261,8 @@ if __name__ == "__main__":
               why="A loop that decides its own next step can decide to loop "
                   "forever — and each lap costs money (Lab 1's meter). Lab 1's "
                   "timeout bounded ONE call; an agent needs the same brake at "
-                  "the loop level. Give it a big task and 2 calls and watch "
-                  "what running out looks like.",
+                  "the loop level. Give it a big task and a budget of one call, "
+                  "and watch what running out looks like.",
               fn=stage_budget,
               logic="It stopped AND SAID SO — handing off honestly instead of "
                     "silently burning 40 calls. An unbounded agent isn't more "
