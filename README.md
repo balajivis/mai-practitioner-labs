@@ -34,14 +34,16 @@ weekend — `git pull` at the start of every session.)*
 
 | Day | Lab | Name | Status |
 |---|---|---|---|
-| 1 (Fri) | 1 | **Evaluation First** — golden cases, the judge, the baseline every later lab must beat | setup-check live · full lab ships Friday |
-| 2 (Sat) | 2 | **Retrieval, Measured** — hybrid, metadata, rerank, contextual | ships via git pull |
-| 2 (Sat) | 3 | **Agentic RAG** — router · query rewrite · decomposition · sufficiency · budget caps | ships via git pull |
-| 2 (Sat) | 4 | **Memory & Personalization** | ships via git pull |
-| 2 (Sat) | 5 | **The Calibrated Judge & the Eval Gate** | ships via git pull |
-| 3 (Sun) | 6 | **Guardrails & Security** — the gauntlet, tenant ACLs | ships via git pull |
-| 3 (Sun) | 7 | **Human-in-the-Loop** — risk-tagged tools, approval queue | ships via git pull |
-| 3 (Sun) | 8 | **MCP + Capstone** — build a server, ship the four-pillar app | ships via git pull |
+| 1 (Fri) | 1 | **LLM Calls Done Right** — roles · structured output · streaming · retries · the cost meter | **live** |
+| 2 (Sat) | 2 | **A Chatbot Worth Shipping** — memory · context budget · persistence · the LLM-judged gate · Gradio | **live** |
+| 2 (Sat) | 3 | **Strong RAG, Proven** — chunking · hybrid (BM25+RRF) · citations · golden set + judge · ablation | **live** |
+| 3 (Sun) | 4 | **An Agent You Can Trust** — LangGraph · tools · agentic RAG · budget caps · HITL checkpoint | **live** |
+| 3 (Sun) | 5 | **Compose & Ship** — the capstone: one Gradio app wiring Labs 1–4, then your own corpus | **live** |
+
+The `corpus/` folder is Meridian Corp's policy binder — deliberately laced with
+multi-hop facts and a superseded policy version, so retrieval mistakes are
+visible. After class, swap it for documents from YOUR world: that version of
+Lab 5 is your portfolio piece.
 
 ## Getting updates
 

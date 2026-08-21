@@ -1,0 +1,161 @@
+"""Shared plumbing for the Level 2 labs — deliberately small and readable.
+
+Everything here is glass-box: open it. The labs import four things —
+
+    client()   an OpenAI client pointed at the class proxy (your .env)
+    stages()   the interactive tutor loop: Enter runs a stage, s skips, q quits;
+               piped/non-interactive input auto-runs everything (CI-safe)
+    say/rule   rich console helpers
+    meter      running token/call tally for the session (the cost habit)
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+from dataclasses import dataclass, field
+
+from dotenv import load_dotenv
+from openai import OpenAI
+from rich.console import Console
+from rich.panel import Panel
+from rich.rule import Rule
+
+console = Console()
+say = console.print
+
+
+def rule(title: str) -> None:
+    say(Rule(f"[bold]{title}[/bold]", style="yellow"))
+
+
+def banner(course_line: str, title: str) -> None:
+    say(Panel.fit(f"[bold]{course_line}[/bold]\n{title}", border_style="yellow"))
+
+
+# ── env + client ─────────────────────────────────────────────────────────────
+
+def client() -> OpenAI:
+    """Load .env and return a client on the class proxy. Fails with the fix, not a trace."""
+    load_dotenv()
+    key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if not key or key.startswith("paste-your"):
+        say(
+            "\n[red]✗ No key found.[/red] Copy .env.example to .env, mint your key at\n"
+            "  [bold]https://study.modernaipro.com/practice[/bold] and paste it into OPENAI_API_KEY.\n"
+        )
+        sys.exit(1)
+    return OpenAI()
+
+
+MODEL = "mai"  # the proxy picks the class model; this value is ignored by design
+
+
+# ── the session meter ────────────────────────────────────────────────────────
+
+@dataclass
+class Meter:
+    """Running cost awareness. Every helper below feeds it; print it any time."""
+    calls: int = 0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    by_label: dict = field(default_factory=dict)
+
+    def add(self, usage, label: str = "call") -> None:
+        if not usage:
+            return
+        self.calls += 1
+        self.prompt_tokens += usage.prompt_tokens or 0
+        self.completion_tokens += usage.completion_tokens or 0
+        row = self.by_label.setdefault(label, [0, 0])
+        row[0] += 1
+        row[1] += (usage.total_tokens or 0)
+
+    @property
+    def total_tokens(self) -> int:
+        return self.prompt_tokens + self.completion_tokens
+
+    def show(self) -> None:
+        parts = " · ".join(f"{k} ×{v[0]} ({v[1]} tok)" for k, v in self.by_label.items())
+        say(f"[dim]meter: {self.calls} calls · {self.total_tokens} tokens — {parts}[/dim]")
+
+
+meter = Meter()
+
+
+def chat(cli: OpenAI, messages: list[dict], label: str = "chat", **kw) -> str:
+    """One metered chat call. kw passes through (max_tokens, response_format, ...).
+    Waits out a burst-limit 429 once — eval suites are bursty by nature."""
+    import time as _time
+    for attempt in (1, 2):
+        try:
+            resp = cli.chat.completions.create(model=MODEL, messages=messages, **kw)
+            break
+        except Exception as e:  # noqa: BLE001
+            if attempt == 1 and "429" in str(e):
+                say("[dim](burst limit — waiting 25s, this is the shared classroom lane)[/dim]")
+                _time.sleep(25)
+                continue
+            raise
+    meter.add(resp.usage, label)
+    return (resp.choices[0].message.content or "").strip()
+
+
+def stream_chat(cli: OpenAI, messages: list[dict], label: str = "stream",
+                on_delta=None, **kw) -> str:
+    """Streamed chat with an honest fallback: if the proxy build in front of you
+    doesn't stream yet, degrade to a normal call and say so. Returns full text."""
+    try:
+        stream = cli.chat.completions.create(model=MODEL, messages=messages,
+                                             stream=True, **kw)
+        out = []
+        usage = None
+        for part in stream:
+            if getattr(part, "usage", None):
+                usage = part.usage
+            delta = part.choices[0].delta.content if part.choices else None
+            if delta:
+                out.append(delta)
+                if on_delta:
+                    on_delta(delta)
+        if usage:
+            meter.add(usage, label)
+        else:
+            meter.calls += 1
+        return "".join(out)
+    except Exception:  # noqa: BLE001 — proxy predates streaming, or transport hiccup
+        say("[dim](streaming unavailable on this proxy build — plain call instead)[/dim]")
+        text = chat(cli, messages, label=label, **kw)
+        if on_delta:
+            on_delta(text)
+        return text
+
+
+# ── the tutor loop ───────────────────────────────────────────────────────────
+
+def stages(cli: OpenAI, steps: list[tuple[str, "callable"]]) -> None:
+    """Run (title, fn) stages. Interactive: Enter/s/q. Piped: auto-run all."""
+    interactive = sys.stdin.isatty()
+    for i, (title, fn) in enumerate(steps, 1):
+        rule(f"Stage {i}/{len(steps)} · {title}")
+        if interactive:
+            ans = input("  Enter to run · s skip · q quit > ").strip().lower()
+            if ans == "q":
+                break
+            if ans == "s":
+                continue
+        fn(cli)
+        meter.show()
+    say()
+    say(Panel.fit("[bold green]Lab complete.[/bold green] git pull before the next session.",
+                  border_style="green"))
+
+
+def ask_yn(prompt: str, default: bool = True) -> bool:
+    """Interactive yes/no; piped input takes the default (CI-safe)."""
+    if not sys.stdin.isatty():
+        return default
+    ans = input(f"  {prompt} [{'Y/n' if default else 'y/N'}] > ").strip().lower()
+    if not ans:
+        return default
+    return ans.startswith("y")
