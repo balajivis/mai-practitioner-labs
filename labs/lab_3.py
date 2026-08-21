@@ -20,7 +20,7 @@ import math
 import re
 from pathlib import Path
 
-from _kit import banner, chat, client, meter, say, stages
+from _kit import Stage, banner, chat, client, meter, say, stages
 
 CORPUS_DIR = Path(__file__).resolve().parent.parent / "corpus"
 
@@ -247,10 +247,74 @@ if __name__ == "__main__":
     banner("Level 2 · AI Practitioner · Day 2", "Lab 3 · Strong RAG, Proven")
     cli = client()
     stages(cli, [
-        ("Build the store — chunk + embed", stage_build),
-        ("Three searchers — semantic · keyword · hybrid", stage_search),
-        ("Grounded answers with citations", stage_grounded),
-        ("The golden set + the LLM judge", stage_golden),
-        ("The ablation — prove hybrid earns its keep", stage_ablation),
+        Stage("Build the store — chunk + embed",
+              why="A model can't answer from documents it never sees, and you "
+                  "can't paste a whole binder into every prompt (Lab 1: context "
+                  "is the cost driver). So RAG splits the problem: store the "
+                  "corpus as SEARCHABLE pieces now, retrieve only the relevant "
+                  "few at question time. First decision: what IS a piece? "
+                  "Chunk size trades recall against noise.",
+              fn=stage_build,
+              logic="Each chunk became a vector — a point in meaning-space where "
+                    "nearby means similar. Note what was decided FOR you by "
+                    "chunking at ~90 words with headers attached: a fact split "
+                    "across two chunks is now hard to retrieve whole. Chunking "
+                    "is a retrieval decision, and stage 4 gives you the "
+                    "instrument to tune it against evidence."),
+        Stage("Three searchers — semantic · keyword · hybrid",
+              why="Two search paradigms, two failure modes — embeddings "
+                  "understand paraphrase but blur exact strings ($800, SEV-1); "
+                  "keyword search (BM25, 20 readable lines above) nails strings "
+                  "but not meaning. If the failure modes are DIFFERENT, "
+                  "combining the two searchers should beat either. RRF tests "
+                  "that: it scores agreement between rank lists.",
+              fn=stage_search,
+              logic="The fused list kept the right doc at top while each single "
+                    "searcher wobbled — agreement between independent rankers "
+                    "is evidence neither provides alone. That's the same logic "
+                    "as asking two doctors: correlated errors are rare. Also "
+                    "spotted: the superseded 2024 policy ranks well too — "
+                    "retrieval alone can't know it's stale. Stage 3's prompt "
+                    "must handle that."),
+        Stage("Grounded answers with citations",
+              why="Retrieval found candidates; now generation must answer FROM "
+                  "them and only them — plus survive two traps we planted: a "
+                  "conflicting superseded version (recency) and a question the "
+                  "corpus can't answer (where honesty beats helpfulness). "
+                  "Citations make every claim auditable back to its source.",
+              fn=stage_grounded,
+              logic="The system prompt did three jobs: restrict to sources, "
+                    "prefer current over superseded, admit gaps. A citation "
+                    "isn't decoration — it converts 'trust me' into 'check me', "
+                    "which is what lets the next stage grade answers "
+                    "mechanically. Ungrounded fluency is the failure mode; "
+                    "grounded refusal is a SUCCESS."),
+        Stage("The golden set + the LLM judge",
+              why="'It seems good' doesn't survive contact with change — every "
+                  "tweak to chunking, model or prompt needs re-checking, and "
+                  "humans won't re-read 6 answers per tweak (nor 600 in a real "
+                  "system). Fix: freeze question→expected-facts pairs and let a "
+                  "second model GRADE against them — Lab 1's structured-output "
+                  "move, now grading instead of extracting.",
+              fn=stage_golden,
+              logic="You now hold a NUMBER instead of a feeling — and a FAIL "
+                    "with the judge's reason attached, which is a repair map: "
+                    "was it retrieval (wrong chunks) or generation (right "
+                    "chunks, wrong words)? The discipline: every future change "
+                    "reruns this suite; beat the number or don't ship. That "
+                    "loop — not any single technique — is what 'strong RAG' "
+                    "means."),
+        Stage("The ablation — prove hybrid earns its keep",
+              why="Stage 2 argued hybrid should win; arguments aren't evidence. "
+                  "An ablation removes exactly one component (BM25 fusion) and "
+                  "reruns the SAME golden set — any score change is attributable "
+                  "to that component alone. This is how practitioners earn "
+                  "every box in their architecture diagram.",
+              fn=stage_ablation,
+              logic="Whatever the margin, you now know hybrid's contribution as "
+                    "a measurement, not a belief — and you felt the caveat: on "
+                    "6 cases one flip moves 17 points, so verdicts need enough "
+                    "cases to stick. Habit to keep: no component ships on "
+                    "reputation; every one pays rent on the golden set."),
     ])
     meter.show()

@@ -17,7 +17,7 @@ Enter runs each stage · s skips · q quits. Piped input auto-runs (CI-safe).
 import json
 import time
 
-from _kit import banner, chat, client, meter, say, stages, stream_chat
+from _kit import Stage, banner, chat, client, meter, say, stages, stream_chat
 
 
 # ── Stage 1 · the anatomy of a call ─────────────────────────────────────────
@@ -114,9 +114,57 @@ if __name__ == "__main__":
     banner("Level 2 · AI Practitioner · Day 1", "Lab 1 · LLM Calls Done Right")
     cli = client()
     stages(cli, [
-        ("The anatomy of a call — roles steer", stage_first_call),
-        ("Structured output — JSON a program can parse", stage_structured),
-        ("Streaming — latency users forgive", stage_streaming),
-        ("Failure is normal — timeout · retry · backoff", stage_failures),
-        ("The cost meter — know your number", stage_cost),
+        Stage("The anatomy of a call — roles steer",
+              why="An LLM call has no 'settings panel' — the message list IS the "
+                  "configuration. If the system role really steers behaviour, then "
+                  "two different system messages with an identical question must "
+                  "produce visibly different answers. That's a testable claim.",
+              fn=stage_first_call,
+              logic="Same model, same question, different system message → different "
+                    "behaviour. Therefore behaviour lives in the prompt, not the "
+                    "model. Corollary: prompts are code — version them, review "
+                    "them, and never let 'just tweak the prompt' skip review."),
+        Stage("Structured output — JSON a program can parse",
+              why="Programs can't branch on prose. For an LLM to sit INSIDE a "
+                  "system (not just chat with a human), its output must be "
+                  "machine-checkable. The test: extract fields from messy text "
+                  "and have json.loads — not a human — decide if it worked.",
+              fn=stage_structured,
+              logic="The parse succeeding is the point: correctness became a "
+                    "mechanical check. This is the foundational move of the whole "
+                    "weekend — Lab 3's judge verdicts and Lab 4's tool calls are "
+                    "this same pattern with higher stakes. Rule: schema + "
+                    "response_format + parse-or-fail, never 'hope it's JSON'."),
+        Stage("Streaming — latency users forgive",
+              why="Total generation time is roughly fixed by output length — you "
+                  "can't make the model finish much faster. But perceived latency "
+                  "is time-to-FIRST-token. If tokens arrive as they're generated, "
+                  "the wait users actually feel shrinks by 10x.",
+              fn=stage_streaming,
+              logic="You optimized nothing about the model, only WHERE the waiting "
+                    "happens — and that's the lever you control. Rule: any "
+                    "user-facing generation over ~2s streams; batch jobs never "
+                    "need to."),
+        Stage("Failure is normal — timeout · retry · backoff",
+              why="Networks drop, providers rate-limit, models time out — at "
+                  "1,000 calls/day even a 1% failure rate is 10 daily failures. "
+                  "So reliability can't come from hoping calls succeed; it must "
+                  "come from what your code does when they don't.",
+              fn=stage_failures,
+              logic="Timeout bounds the damage, retry absorbs the transient, "
+                    "backoff (doubling waits) keeps your retries from becoming "
+                    "the flood that keeps the service down. When retries run "
+                    "out: honest error, never a hang. That four-part shape is "
+                    "universal — you'll meet it again as the agent budget cap."),
+        Stage("The cost meter — know your number",
+              why="Token costs are invisible per-call and shocking per-month — "
+                  "the classic failure is discovering the bill AFTER launch. The "
+                  "meter you've been feeding all lab exists to make cost a "
+                  "number you check WHILE building, like a test.",
+              fn=stage_cost,
+              logic="Cost per feature = tokens/call × calls/session × sessions — "
+                    "three numbers you now measure, not guess. Input tokens "
+                    "usually dominate (context is the cost driver), and history "
+                    "resends make chat cost climb every turn: watch that bite "
+                    "in Lab 2. Budget per feature before you ship it."),
     ])

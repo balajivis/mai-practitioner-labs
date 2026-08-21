@@ -132,19 +132,41 @@ def stream_chat(cli: OpenAI, messages: list[dict], label: str = "stream",
 
 
 # ── the tutor loop ───────────────────────────────────────────────────────────
+# Every stage teaches in the same shape, on purpose:
+#
+#   WHY        the reasoning — what problem exists and why you should care,
+#              BEFORE any code runs (so you know what to watch for)
+#   the demo   the fn — code + live model calls you can read and rerun
+#   THE LOGIC  what the observation you just made PROVES, and the rule
+#              you can carry to your own systems
+#
+# Claim → evidence → conclusion. If a stage can't fill all three, it isn't
+# teaching — that's the bar for adding one.
 
-def stages(cli: OpenAI, steps: list[tuple[str, "callable"]]) -> None:
-    """Run (title, fn) stages. Interactive: Enter/s/q. Piped: auto-run all."""
+@dataclass
+class Stage:
+    title: str
+    why: str          # the reasoning, shown before the demo
+    fn: object        # callable(cli) — the demonstration
+    logic: str        # the conclusion the evidence supports, shown after
+
+
+def stages(cli: OpenAI, steps: list[Stage]) -> None:
+    """Run Stage(title, why, fn, logic) steps. Interactive: Enter/s/q. Piped: auto-run."""
     interactive = sys.stdin.isatty()
-    for i, (title, fn) in enumerate(steps, 1):
-        rule(f"Stage {i}/{len(steps)} · {title}")
+    for i, st in enumerate(steps, 1):
+        rule(f"Stage {i}/{len(steps)} · {st.title}")
+        say(Panel(st.why.strip(), title="[bold]why[/bold]", title_align="left",
+                  border_style="blue", padding=(0, 2)))
         if interactive:
             ans = input("  Enter to run · s skip · q quit > ").strip().lower()
             if ans == "q":
                 break
             if ans == "s":
                 continue
-        fn(cli)
+        st.fn(cli)
+        say(Panel(st.logic.strip(), title="[bold]the logic[/bold]", title_align="left",
+                  border_style="green", padding=(0, 2)))
         meter.show()
     say()
     say(Panel.fit("[bold green]Lab complete.[/bold green] git pull before the next session.",

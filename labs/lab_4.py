@@ -17,7 +17,7 @@ Enter runs each stage · s skips · q quits. Piped input auto-runs (CI-safe).
 import json
 import sys
 
-from _kit import banner, chat, client, meter, say, stages, MODEL
+from _kit import Stage, banner, chat, client, meter, say, stages, MODEL
 from lab_3 import CORPUS_DIR, STORE, chunk, embed, retrieve
 
 # ── the tools ────────────────────────────────────────────────────────────────
@@ -220,10 +220,66 @@ if __name__ == "__main__":
     banner("Level 2 · AI Practitioner · Day 3", "Lab 4 · An Agent You Can Trust")
     cli = client()
     stages(cli, [
-        ("Rebuild the store — the agent's knowledge tool", stage_build),
-        ("First tool call — watch the loop think", stage_first_tool),
-        ("Agentic RAG — retrieval that re-aims itself", stage_agentic_rag),
-        ("The budget cap — honest failure", stage_budget),
-        ("The HITL checkpoint — destructive means pause", stage_hitl),
+        Stage("Rebuild the store — the agent's knowledge tool",
+              why="An agent differs from a chatbot in three ways: TOOLS it may "
+                  "call, a LOOP that feeds results back, and a STOP decision. "
+                  "Lab 3's retrieval becomes tool #1 — same code, new caller: "
+                  "now the MODEL decides when to search. The graph makes the "
+                  "loop explicit: START → agent —tool_calls?→ tools → agent … "
+                  "→ END. If you can't draw it, you can't audit it.",
+              fn=stage_build,
+              logic="The store is up and the loop is on the table. Keep the "
+                    "graph picture in view for every stage: each one changes "
+                    "exactly one thing about it — what tools exist, how routing "
+                    "decides, when it stops, and who must approve."),
+        Stage("First tool call — watch the loop think",
+              why="The model never runs code — it EMITS a structured request "
+                  "(Lab 1's JSON, grown up) naming a tool and arguments; your "
+                  "code runs it and feeds the result back; the model continues. "
+                  "The question needs policy lookup AND arithmetic, so a real "
+                  "plan requires sequencing two different tools.",
+              fn=stage_first_tool,
+              logic="The model chose the tools, the order, and when to stop — "
+                    "given only descriptions of what each tool does. That's why "
+                    "tool descriptions are load-bearing prompts, not comments. "
+                    "And note who held the actual capability: your code. The "
+                    "model requests; the harness decides — that separation is "
+                    "where every safety property lives."),
+        Stage("Agentic RAG — retrieval that re-aims itself",
+              why="Lab 3's pipeline retrieves once and hopes — a vague question "
+                  "retrieves vaguely and the answer inherits the miss. An agent "
+                  "can JUDGE its own results and search again with better "
+                  "words. Ask something fuzzy and count the searches.",
+              fn=stage_agentic_rag,
+              logic="The re-aim is sufficiency checking: the agent compared what "
+                    "it got against what the question needs — a self-eval in "
+                    "the loop, which is Lab 3's judge idea applied to its own "
+                    "work-in-progress. The trade: better answers for more "
+                    "calls. Which is exactly why the next stage exists."),
+        Stage("The budget cap — honest failure",
+              why="A loop that decides its own next step can decide to loop "
+                  "forever — and each lap costs money (Lab 1's meter). Lab 1's "
+                  "timeout bounded ONE call; an agent needs the same brake at "
+                  "the loop level. Give it a big task and 2 calls and watch "
+                  "what running out looks like.",
+              fn=stage_budget,
+              logic="It stopped AND SAID SO — handing off honestly instead of "
+                    "silently burning 40 calls. An unbounded agent isn't more "
+                    "capable, it's more expensive at failing. Caps, timeouts "
+                    "and budgets are to agents what brakes are to cars: the "
+                    "feature that makes speed usable."),
+        Stage("The HITL checkpoint — destructive means pause",
+              why="Reading is reversible; ACTING is not — and 'the prompt says "
+                  "be careful' is not a control, because prompts can be talked "
+                  "around. The risk tag lives on the TOOL (structural, "
+                  "unpromptable), routing every destructive call through a "
+                  "human. Piped runs auto-DENY: fail closed, like Lab 2's gate.",
+              fn=stage_hitl,
+              logic="Three rules made that real rather than theater: the tag is "
+                    "structural (no wording bypasses it) · the default is DENY "
+                    "(a broken checkpoint blocks, never admits) · the denial "
+                    "returned as feedback, so the agent explained instead of "
+                    "retrying. Autonomy is earned action-by-action — this "
+                    "checkpoint is how."),
     ])
     meter.show()

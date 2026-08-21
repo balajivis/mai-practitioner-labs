@@ -16,7 +16,7 @@ Enter runs each stage · s skips · q quits. Piped input auto-runs (CI-safe).
 import json
 from pathlib import Path
 
-from _kit import ask_yn, banner, chat, client, meter, say, stages, stream_chat
+from _kit import Stage, ask_yn, banner, chat, client, meter, say, stages, stream_chat
 
 PERSONA = ("You are Meridian Corp's internal helpdesk assistant: concise, warm, "
            "and honest about what you don't know. Never invent policy.")
@@ -151,11 +151,70 @@ if __name__ == "__main__":
     banner("Level 2 · AI Practitioner · Day 2", "Lab 2 · A Chatbot Worth Shipping")
     cli = client()
     stages(cli, [
-        ("The amnesia demo — there is no memory", stage_amnesia),
-        ("History IS the memory", stage_history),
-        ("The context budget — summarize the tail", stage_budget),
-        ("Persistence + persona — survive a restart", stage_persist),
-        ("The input gate — classify, never regex", stage_gate),
-        ("The Gradio finale — same logic, real UI", stage_gradio),
+        Stage("The amnesia demo — there is no memory",
+              why="Claim: the API is completely stateless — every call starts "
+                  "from nothing. If that's true, telling it your name and then "
+                  "asking for your name in a SECOND call must fail. Run exactly "
+                  "that experiment before building anything on the answer.",
+              fn=stage_amnesia,
+              logic="It failed, so the premise holds: there is no server-side "
+                    "memory to configure or pay for — 'chatbot memory' can only "
+                    "mean text YOU choose to send back. Every memory feature in "
+                    "every chat product decomposes into that one move."),
+        Stage("History IS the memory",
+              why="If memory = resending text, then a list you append each turn "
+                  "and resend wholesale should make the bot 'remember'. It also "
+                  "predicts something less pleasant: cost must GROW each turn, "
+                  "because the transcript rides along every time. Watch both.",
+              fn=stage_history,
+              logic="Both predictions held — it remembered, and turn 2 cost more "
+                    "than turn 1. Memory and cost are the SAME mechanism, which "
+                    "is why memory design is really budget design. That tension "
+                    "is the next stage's problem."),
+        Stage("The context budget — summarize the tail",
+              why="Unbounded history eventually breaks two limits: the context "
+                  "window (hard) and your budget (soft). You can't keep "
+                  "everything verbatim; dropping old turns loses facts. The "
+                  "engineering question: what's the cheapest representation of "
+                  "the past that preserves what the NEXT turn needs?",
+              fn=stage_budget,
+              logic="A 2-sentence summary carried the durable facts (who, what's "
+                    "approved, by whom) at a fraction of the tokens — the bot "
+                    "answered from compressed past + fresh turn. Shape: verbatim "
+                    "window for recency, summary for the tail, and (Level 3) "
+                    "durable per-user facts extracted OUT of the transcript."),
+        Stage("Persistence + persona — survive a restart",
+              why="In-process memory dies with the process; a product's memory "
+                  "must live OUTSIDE it. If the transcript is just a list of "
+                  "dicts, then serializing it, 'restarting', reloading and "
+                  "asking again should behave as if nothing happened.",
+              fn=stage_persist,
+              logic="It did — because state was data, not process. JSON file "
+                    "today, a DB row keyed by user tomorrow: same design. Note "
+                    "the persona rode at position 0 through the round-trip; "
+                    "identity is part of the state you persist, not a vibe."),
+        Stage("The input gate — classify, never regex",
+              why="Before input reaches your bot, something must decide 'safe or "
+                  "not'. The tempting tool is regex — but 'is this an injection?' "
+                  "is a MEANING question, and meaning has unbounded phrasings. "
+                  "A pattern list can only encode the phrasings you've already "
+                  "seen. Test a classifier on probes no pattern anticipates.",
+              fn=stage_gate,
+              logic="The classifier generalized to phrasings it never saw — a "
+                    "regex would match exactly its list, forever behind. Hence "
+                    "the house rule: models CLASSIFY (meaning), regex only "
+                    "PARSES (structure). And when the gate itself misbehaves, "
+                    "fail CLOSED — a broken gate that admits everything is "
+                    "worse than no gate, because you trust it."),
+        Stage("The Gradio finale — same logic, real UI",
+              why="If the bot's logic is properly separated from its interface, "
+                  "wrapping it in a real UI should require wiring, not rewrites "
+                  "— the respond() function just replays the same message-list "
+                  "discipline you built in stages 2–4.",
+              fn=stage_gradio,
+              logic="Same functions, new face — that separation IS the "
+                    "architecture lesson. UI frameworks come and go; the "
+                    "message-list core you built is what survives. Lab 5 "
+                    "composes this UI with retrieval and an agent."),
     ])
     meter.show()

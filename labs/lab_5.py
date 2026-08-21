@@ -73,6 +73,11 @@ if __name__ == "__main__":
         say("[red]gradio isn't installed[/red] — `pip install gradio`, then rerun.")
         sys.exit(1)
 
+    say("\n  [bold]Why this lab exists:[/bold] parts are not a product. Labs 1–4 each")
+    say("  proved one component; composition is where the real questions appear —")
+    say("  which component answers which turn, where the meters aggregate, where")
+    say("  the checkpoint sits when a UI (not a terminal) is in front. One agent")
+    say("  graph routes EVERY turn: it decides chat vs search vs act, per message.")
     say("\n  Try these, in order — each exercises a different lab:")
     say("   · How do I file a travel expense?                  (chat + RAG + citations)")
     say("   · $75/day for 4 days minus a $40 dinner — total?   (tool: calc)")
