@@ -27,14 +27,16 @@ def stage_first_call(cli):
     say("steering wheel — same question, two systems:\n")
     q = "What should our team do about flaky tests?"
     for persona in (
-        "You are a terse engineering lead. Answer in two sentences, concretely.",
-        "You are a cheerful motivational coach. Answer in two sentences.",
+        "You are a staff SRE talking to engineers. Two sentences, name specific "
+        "technical tactics, use the jargon.",
+        "You are a CFO talking to the board. Two sentences, NO engineering jargon "
+        "at all — speak only about cost, risk and delivery dates.",
     ):
         out = chat(cli, [
             {"role": "system", "content": persona},
             {"role": "user", "content": q},
         ], label="roles", max_tokens=120)
-        say(f"  [yellow]system:[/yellow] [dim]{persona[:58]}…[/dim]")
+        say(f"  [yellow]system:[/yellow] [dim]{persona[:64]}…[/dim]")
         say(f"  [green]→[/green] {out}\n")
     say("Same model, same question — the system role did all the work. Every app")
     say("you build this weekend starts by writing that message deliberately.")

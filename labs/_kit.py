@@ -103,32 +103,36 @@ def chat(cli: OpenAI, messages: list[dict], label: str = "chat", **kw) -> str:
 
 def stream_chat(cli: OpenAI, messages: list[dict], label: str = "stream",
                 on_delta=None, **kw) -> str:
-    """Streamed chat with an honest fallback: if the proxy build in front of you
-    doesn't stream yet, degrade to a normal call and say so. Returns full text."""
+    """Streamed chat that degrades honestly.
+
+    Two ways a proxy can fail to stream, and we handle BOTH: it can raise, or it
+    can quietly answer a stream request with a normal JSON body (the SDK then
+    iterates zero chunks and you'd see a blank screen). If no text arrives, we
+    say so and re-ask without streaming — the lesson survives either way."""
+    out: list[str] = []
     try:
         stream = cli.chat.completions.create(model=MODEL, messages=messages,
                                              stream=True, **kw)
-        out = []
         usage = None
         for part in stream:
             if getattr(part, "usage", None):
                 usage = part.usage
-            delta = part.choices[0].delta.content if part.choices else None
+            delta = part.choices[0].delta.content if (part.choices and part.choices[0].delta) else None
             if delta:
                 out.append(delta)
                 if on_delta:
                     on_delta(delta)
-        if usage:
-            meter.add(usage, label)
-        else:
-            meter.calls += 1
-        return "".join(out)
-    except Exception:  # noqa: BLE001 — proxy predates streaming, or transport hiccup
-        say("[dim](streaming unavailable on this proxy build — plain call instead)[/dim]")
-        text = chat(cli, messages, label=label, **kw)
-        if on_delta:
-            on_delta(text)
-        return text
+        if out:
+            meter.add(usage, label) if usage else setattr(meter, "calls", meter.calls + 1)
+            return "".join(out)
+    except Exception:  # noqa: BLE001 — transport hiccup, or a proxy that rejects stream=
+        pass
+    say("\n  [dim](this proxy build answered without streaming — same text, "
+        "delivered all at once)[/dim]\n  ")
+    text = chat(cli, messages, label=label, **kw)
+    if on_delta:
+        on_delta(text)
+    return text
 
 
 # ── the tutor loop ───────────────────────────────────────────────────────────
