@@ -36,15 +36,24 @@ def banner(course_line: str, title: str) -> None:
 # ── env + client ─────────────────────────────────────────────────────────────
 
 def client() -> OpenAI:
-    """Load .env and return a client on the class proxy. Fails with the fix, not a trace."""
+    """Load .env and return a client on the class proxy. Fails with the fix, not a trace.
+
+    MAI_API_KEY is accepted as an alias: the Practice page names that variable
+    (it's what the Level 1 kit reads), so a student who follows the page instead
+    of the .env comment still works rather than hitting a confusing error."""
     load_dotenv()
-    key = os.environ.get("OPENAI_API_KEY", "").strip()
+    key = (os.environ.get("OPENAI_API_KEY", "") or os.environ.get("MAI_API_KEY", "")).strip()
     if not key or key.startswith("paste-your"):
         say(
             "\n[red]✗ No key found.[/red] Copy .env.example to .env, mint your key at\n"
-            "  [bold]https://study.modernaipro.com/practice[/bold] and paste it into OPENAI_API_KEY.\n"
+            "  [bold]https://study.modernaipro.com/practice[/bold] "
+            "(button: 'Get my practice key')\n  and paste it into OPENAI_API_KEY.\n"
         )
         sys.exit(1)
+    os.environ["OPENAI_API_KEY"] = key  # the SDK reads this one
+    if not os.environ.get("OPENAI_BASE_URL", "").strip():
+        os.environ["OPENAI_BASE_URL"] = "https://learn.modernaipro.com/api/llm/v1"
+        say("[dim](no OPENAI_BASE_URL in .env — defaulting to the class proxy)[/dim]")
     return OpenAI()
 
 

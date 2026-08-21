@@ -138,15 +138,22 @@ def stage_build(cli):
     for f in sorted(CORPUS_DIR.glob("*.md")):
         for c in chunk(f.read_text()):
             STORE.append({"doc": f.name, "text": c, "vec": None})
-    say(f"  {len(list(CORPUS_DIR.glob('*.md')))} docs → {len(STORE)} chunks "
-        f"(~90 words each, headers kept with their bodies)")
+    ndocs = len(list(CORPUS_DIR.glob("*.md")))
+    words = [len(c["text"].split()) for c in STORE]
+    say(f"  {ndocs} docs → {len(STORE)} chunks · "
+        f"{min(words)}–{max(words)} words each (avg {sum(words)//len(words)})")
+    if len(STORE) == ndocs:
+        say("  [dim]note: these policy docs are short enough that each fits in one "
+            "chunk — nothing was split. Point this at a 40-page PDF and the same "
+            "code produces dozens.[/dim]")
     vecs = embed(cli, [c["text"] for c in STORE])
     for c, v in zip(STORE, vecs):
         c["vec"] = v
     say(f"  embedded all {len(STORE)} chunks in one metered call — dim {len(vecs[0])}\n")
-    say("Chunking IS a retrieval decision: too big and answers hide inside noise;")
-    say("too small and multi-sentence facts get cut in half. ~90 words is a start,")
-    say("not a law — real systems tune this against the golden set you build in stage 4.")
+    say("Chunking IS a retrieval decision: too big and the answer hides inside")
+    say("noise; too small and a multi-sentence fact gets cut in half — retrievable")
+    say("neither way. The target size is a knob, not a law: tune it against the")
+    say("golden set you build in stage 4, the same way you'd tune any parameter.")
 
 
 # ── Stage 2 · semantic vs keyword vs hybrid ─────────────────────────────────
