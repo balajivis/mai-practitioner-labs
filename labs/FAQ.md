@@ -16,6 +16,9 @@ message tells you where you stand. Slow a runaway loop before re-running.
 
 **Windows** — activate with `.venv\Scripts\activate`; everything else is identical.
 
+**`python: command not found`** — many machines (especially macOS) only have
+`python3`. Use `python3 labs/lab_1.py` and `pip3 install -r requirements.txt`.
+
 **`git pull` conflicts** — you edited a lab in place. Copy your work
 (`cp labs/lab_2.py my_lab_2.py`), then `git checkout -- labs/lab_2.py` and pull again.
 

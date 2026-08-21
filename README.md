@@ -14,6 +14,9 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
+*Windows: activate with `.venv\Scripts\activate`. If `python` isn't found, use
+`python3` and `pip3` — common on macOS.*
+
 Then **mint your personal MAI key** at
 [study.modernaipro.com/practice](https://study.modernaipro.com/practice) (it shows exactly
 once) and paste it into `OPENAI_API_KEY` in your `.env`. A shared class token pinned in the
